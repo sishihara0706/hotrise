@@ -45,6 +45,8 @@ function formatDate(iso: string) {
   return Number.isNaN(d.getTime()) ? iso : d.toLocaleString("ja-JP");
 }
 
+type ViewMode = "card" | "table";
+
 export function SearchClient() {
   const [q, setQ] = useState("");
   const [windowKey, setWindowKey] = useState<WindowKey>("24h");
@@ -54,6 +56,7 @@ export function SearchClient() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [result, setResult] = useState<SearchResponse | null>(null);
+  const [viewMode, setViewMode] = useState<ViewMode>("card");
 
   const modeLabel = useMemo(() => (q.trim() ? "検索モード" : "探索モード"), [q]);
 
@@ -235,18 +238,44 @@ export function SearchClient() {
         {!loading && !error && result && (
           <>
             <div className="summary" role="region" aria-label="検索結果サマリー">
-              <p className="summaryMain">
-                {result.total}件ヒット <span className="dot">•</span> {result.window} <span className="dot">•</span>{" "}
-                {result.mode === "query" ? "検索" : "探索"}
-              </p>
-              <p className="muted">
-                最小再生数: {formatNumber(result.minViews)} / 登録者上限:{" "}
-                {result.maxSubscribers === null ? "なし" : formatNumber(result.maxSubscribers)}
-              </p>
-              <p className="muted">並び替え: {sortOptions.find((opt) => opt.value === result.sort)?.label ?? result.sort}</p>
-              <p className="muted">
-                生成: {formatDate(result.generatedAt)} / キャッシュ: {result.cacheHit ? "HIT" : "MISS"}
-              </p>
+              <div className="summaryHeader">
+                <div>
+                  <p className="summaryMain">
+                    {result.total}件ヒット <span className="dot">•</span> {result.window} <span className="dot">•</span>{" "}
+                    {result.mode === "query" ? "検索" : "探索"}
+                  </p>
+                  <p className="muted">
+                    最小再生数: {formatNumber(result.minViews)} / 登録者上限:{" "}
+                    {result.maxSubscribers === null ? "なし" : formatNumber(result.maxSubscribers)}
+                  </p>
+                  <p className="muted">並び替え: {sortOptions.find((opt) => opt.value === result.sort)?.label ?? result.sort}</p>
+                  <p className="muted">
+                    生成: {formatDate(result.generatedAt)} / キャッシュ: {result.cacheHit ? "HIT" : "MISS"}
+                  </p>
+                </div>
+                <div className="viewToggle" role="group" aria-label="表示モード切替">
+                  <button
+                    type="button"
+                    className={`viewToggleButton ${viewMode === "card" ? "active" : ""}`}
+                    onClick={() => setViewMode("card")}
+                    aria-pressed={viewMode === "card"}
+                    aria-label="カード表示"
+                  >
+                    <span aria-hidden="true">📋</span>
+                    <span className="viewToggleLabel">カード</span>
+                  </button>
+                  <button
+                    type="button"
+                    className={`viewToggleButton ${viewMode === "table" ? "active" : ""}`}
+                    onClick={() => setViewMode("table")}
+                    aria-pressed={viewMode === "table"}
+                    aria-label="テーブル表示"
+                  >
+                    <span aria-hidden="true">📊</span>
+                    <span className="viewToggleLabel">テーブル</span>
+                  </button>
+                </div>
+              </div>
             </div>
 
             {result.items.length === 0 && (
@@ -261,40 +290,85 @@ export function SearchClient() {
               </div>
             )}
 
-            <div className="results">
-              {result.items.map((item) => (
-                <article key={item.videoId} className="item" aria-labelledby={`title-${item.videoId}`}>
-                  <a href={item.youtubeUrl} target="_blank" rel="noopener noreferrer" className="thumbWrap">
-                    {item.thumbnailUrl ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img src={item.thumbnailUrl} alt={item.title} className="thumb" />
-                    ) : (
-                      <div className="thumbFallback">No Image</div>
-                    )}
-                  </a>
-
-                  <div className="itemBody">
-                    <a
-                      href={item.youtubeUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="titleLink"
-                      id={`title-${item.videoId}`}
-                      aria-label={`${item.title} - ${item.channelTitle}の動画を開く`}
-                    >
-                      {item.title}
+            {viewMode === "card" && (
+              <div className="results">
+                {result.items.map((item) => (
+                  <article key={item.videoId} className="item" aria-labelledby={`title-${item.videoId}`}>
+                    <a href={item.youtubeUrl} target="_blank" rel="noopener noreferrer" className="thumbWrap">
+                      {item.thumbnailUrl ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img src={item.thumbnailUrl} alt={item.title} className="thumb" />
+                      ) : (
+                        <div className="thumbFallback">No Image</div>
+                      )}
                     </a>
-                    <p className="muted">{item.channelTitle}</p>
-                    <div className="metaGrid">
-                      <p className="meta">投稿日: {formatDate(item.publishedAt)}</p>
-                      <p className="meta">再生: {formatNumber(item.viewCount)}</p>
-                      <p className="meta">登録者: {formatNumber(item.subscriberCount)}</p>
-                      <p className="meta strong">ratio: {formatRatio(item.ratio)}</p>
+
+                    <div className="itemBody">
+                      <a
+                        href={item.youtubeUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="titleLink"
+                        id={`title-${item.videoId}`}
+                        aria-label={`${item.title} - ${item.channelTitle}の動画を開く`}
+                      >
+                        {item.title}
+                      </a>
+                      <p className="muted">{item.channelTitle}</p>
+                      <div className="metaGrid">
+                        <p className="meta">投稿日: {formatDate(item.publishedAt)}</p>
+                        <p className="meta">再生: {formatNumber(item.viewCount)}</p>
+                        <p className="meta">登録者: {formatNumber(item.subscriberCount)}</p>
+                        <p className="meta strong">ratio: {formatRatio(item.ratio)}</p>
+                      </div>
                     </div>
-                  </div>
-                </article>
-              ))}
-            </div>
+                  </article>
+                ))}
+              </div>
+            )}
+
+            {viewMode === "table" && (
+              <div className="tableWrapper">
+                <table className="resultsTable">
+                  <thead>
+                    <tr>
+                      <th>動画</th>
+                      <th>チャンネル</th>
+                      <th>投稿日</th>
+                      <th className="numCol">再生数</th>
+                      <th className="numCol">登録者数</th>
+                      <th className="numCol">ratio</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {result.items.map((item) => (
+                      <tr key={item.videoId}>
+                        <td className="videoCell">
+                          <a
+                            href={item.youtubeUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="videoLink"
+                            aria-label={`${item.title} - ${item.channelTitle}の動画を開く`}
+                          >
+                            {item.thumbnailUrl && (
+                              // eslint-disable-next-line @next/next/no-img-element
+                              <img src={item.thumbnailUrl} alt="" className="tableThumb" />
+                            )}
+                            <span className="videoTitle">{item.title}</span>
+                          </a>
+                        </td>
+                        <td>{item.channelTitle}</td>
+                        <td className="dateCol">{formatDate(item.publishedAt)}</td>
+                        <td className="numCol">{formatNumber(item.viewCount)}</td>
+                        <td className="numCol">{formatNumber(item.subscriberCount)}</td>
+                        <td className="numCol strong">{formatRatio(item.ratio)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </>
         )}
       </section>
