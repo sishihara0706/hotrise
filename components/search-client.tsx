@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useMemo, useState } from "react";
+import { FormEvent, useEffect, useMemo, useState } from "react";
 import type { SearchResponse, SortKey, WindowKey } from "@/lib/types";
 
 const windows: Array<{ value: WindowKey; label: string }> = [
@@ -57,6 +57,41 @@ export function SearchClient() {
 
   const modeLabel = useMemo(() => (q.trim() ? "検索モード" : "探索モード"), [q]);
 
+  function resetForm() {
+    setQ("");
+    setWindowKey("24h");
+    setMinViews("0");
+    setMaxSubscribers("");
+    setSort("ratio_desc");
+    setResult(null);
+    setError("");
+  }
+
+  // キーボードショートカット
+  useEffect(() => {
+    function handleKeyboard(e: KeyboardEvent) {
+      // Cmd/Ctrl + K: 検索フォームにフォーカス
+      if ((e.metaKey || e.ctrlKey) && e.key === "k") {
+        e.preventDefault();
+        document.getElementById("q")?.focus();
+      }
+
+      // Cmd/Ctrl + Enter: 検索実行
+      if ((e.metaKey || e.ctrlKey) && e.key === "Enter") {
+        e.preventDefault();
+        document.querySelector<HTMLFormElement>(".searchForm")?.requestSubmit();
+      }
+
+      // Esc: フォームリセット
+      if (e.key === "Escape" && !loading) {
+        resetForm();
+      }
+    }
+
+    window.addEventListener("keydown", handleKeyboard);
+    return () => window.removeEventListener("keydown", handleKeyboard);
+  }, [loading]);
+
   async function onSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setLoading(true);
@@ -94,7 +129,7 @@ export function SearchClient() {
 
   return (
     <>
-      <section className="card panel">
+      <section className="card panel" role="search" aria-label="動画検索フォーム">
         <form onSubmit={onSubmit} className="searchForm">
           <label htmlFor="q">検索ワード（任意）</label>
           <input id="q" name="q" type="text" maxLength={100} value={q} onChange={(e) => setQ(e.target.value)} />
@@ -141,22 +176,65 @@ export function SearchClient() {
           </select>
 
           <div className="row">
-            <button type="submit" disabled={loading}>
+            <button type="submit" disabled={loading} aria-disabled={loading} aria-busy={loading}>
               {loading ? "検索中..." : "検索"}
+            </button>
+            <button type="button" className="buttonSecondary" onClick={resetForm} disabled={loading}>
+              リセット
             </button>
             <span className="pill">{modeLabel}</span>
           </div>
         </form>
+
+        <div className="keyboardHints">
+          <span>
+            <kbd>⌘K</kbd> フォーカス
+          </span>
+          <span>
+            <kbd>⌘Enter</kbd> 検索
+          </span>
+          <span>
+            <kbd>Esc</kbd> リセット
+          </span>
+        </div>
       </section>
 
       <section className="card resultPanel">
-        {loading && <p className="status">データを取得しています...</p>}
-        {!loading && error && <p className="error">{error}</p>}
+        {loading && (
+          <div className="loadingState" role="status" aria-live="polite" aria-busy="true">
+            <div className="spinner" aria-hidden="true"></div>
+            <p className="loadingText">データを取得しています...</p>
+            <div className="skeletonGrid">
+              {[...Array(3)].map((_, i) => (
+                <div key={i} className="skeletonItem">
+                  <div className="skeletonThumb"></div>
+                  <div className="skeletonBody">
+                    <div className="skeletonLine skeletonTitle"></div>
+                    <div className="skeletonLine skeletonMeta"></div>
+                    <div className="skeletonLine skeletonMeta short"></div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+        {!loading && error && (
+          <div className="errorState" role="alert" aria-live="assertive">
+            <div className="errorIcon" aria-hidden="true">
+              ⚠️
+            </div>
+            <p className="errorTitle">エラーが発生しました</p>
+            <p className="errorMessage">{error}</p>
+            <button type="button" className="buttonSecondary" onClick={() => setError("")}>
+              閉じる
+            </button>
+          </div>
+        )}
         {!loading && !error && !result && <p className="status muted">条件を指定して検索してください。</p>}
 
         {!loading && !error && result && (
           <>
-            <div className="summary">
+            <div className="summary" role="region" aria-label="検索結果サマリー">
               <p className="summaryMain">
                 {result.total}件ヒット <span className="dot">•</span> {result.window} <span className="dot">•</span>{" "}
                 {result.mode === "query" ? "検索" : "探索"}
@@ -171,11 +249,21 @@ export function SearchClient() {
               </p>
             </div>
 
-            {result.items.length === 0 && <p>該当動画はありませんでした。</p>}
+            {result.items.length === 0 && (
+              <div className="emptyState">
+                <p className="emptyStateTitle">該当動画はありませんでした</p>
+                <p className="emptyStateDesc">検索条件を変更してお試しください。</p>
+                <ul className="emptyStateTips">
+                  <li>検索ワードを変更する</li>
+                  <li>期間を広げる（3日 → 7日）</li>
+                  <li>最小再生数を下げる</li>
+                </ul>
+              </div>
+            )}
 
             <div className="results">
               {result.items.map((item) => (
-                <article key={item.videoId} className="item">
+                <article key={item.videoId} className="item" aria-labelledby={`title-${item.videoId}`}>
                   <a href={item.youtubeUrl} target="_blank" rel="noopener noreferrer" className="thumbWrap">
                     {item.thumbnailUrl ? (
                       // eslint-disable-next-line @next/next/no-img-element
@@ -186,7 +274,14 @@ export function SearchClient() {
                   </a>
 
                   <div className="itemBody">
-                    <a href={item.youtubeUrl} target="_blank" rel="noopener noreferrer" className="titleLink">
+                    <a
+                      href={item.youtubeUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="titleLink"
+                      id={`title-${item.videoId}`}
+                      aria-label={`${item.title} - ${item.channelTitle}の動画を開く`}
+                    >
                       {item.title}
                     </a>
                     <p className="muted">{item.channelTitle}</p>
