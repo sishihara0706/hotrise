@@ -1,0 +1,16 @@
+name = "hotrise"
+main = ".open-next/worker.js"
+compatibility_date = "2026-02-07"
+compatibility_flags = ["nodejs_compat"]
+
+# TODO: デプロイ前にCloudflare上で作成したD1 DB IDへ変更
+[[d1_databases]]
+binding = "DB"
+database_name = "hotrise-db"
+database_id = "b7ad74f4-734e-4f3b-820e-4ddd2387d24f"
+migrations_dir = "migrations"
+
+[vars]
+YT_REGION = "JP"
+MIN_SUBSCRIBERS = "100"
+CACHE_TTL_SECONDS = "1200"

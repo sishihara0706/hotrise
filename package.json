@@ -1,0 +1,30 @@
+{
+  "name": "hotrise",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "eslint . --max-warnings=0",
+    "typecheck": "tsc --noEmit",
+    "cf:dev": "wrangler dev",
+    "cf:deploy": "wrangler deploy",
+    "cf:d1:migrate": "wrangler d1 migrations apply hotrise-db"
+  },
+  "dependencies": {
+    "next": "^16.1.6",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.20250124.0",
+    "@types/node": "^20.17.0",
+    "@types/react": "^18.3.0",
+    "@types/react-dom": "^18.3.0",
+    "eslint": "^9.22.0",
+    "eslint-config-next": "^16.1.6",
+    "typescript": "^5.8.0",
+    "wrangler": "^4.63.0"
+  }
+}
